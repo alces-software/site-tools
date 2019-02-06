@@ -1,0 +1,16 @@
+#!/bin/bash
+
+
+LOG='/opt/service/site/sitescripts.log'
+CONFDIR='/opt/apps/alces/slurm'
+BACKUPDIR="${CONFDIR}/backup"
+
+echo "`date +'%Y%m%d_%H%M%S'` - ${SUDO_USER} executing munge config script on `hostname -s`" >> $LOG
+
+cp -f /etc/munge/munge.key $BACKUPDIR/munge.key.`hostname -s`.`date +'%Y%m%d_%H%M%S'`
+cp -fv $CONFDIR/munge.key /etc/munge/munge.key
+sleep 1
+
+chown munge:root /etc/munge/munge.key
+chmod 400 /etc/munge/munge.key
+systemctl restart munge

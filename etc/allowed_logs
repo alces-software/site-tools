@@ -1,0 +1,4 @@
+# Add logs to the array below, this will add these into the list of
+# logs that are able to be retrieved by site admins.
+
+ALLOWEDLOGS=('/var/log/messages' '/var/log/secure')

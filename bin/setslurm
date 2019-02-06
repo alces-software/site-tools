@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CUSTOMER='customer_name'
+LOG='/opt/service/site/sitescripts.log'
+CONFDIR='/opt/site/${CUSTOMER}/slurm'
+BACKUPDIR="${CONFDIR}/backup"
+
+echo "`date +'%Y%m%d_%H%M%S'` - ${SUDO_USER} executing slurm config script on `hostname -s`" >> $LOG
+
+cp -f /etc/slurm/slurm.conf $BACKUPDIR/slurm.conf.`hostname -s`.`date +'%Y%m%d_%H%M%S'`
+cp -f /etc/slurm/gres.conf $BACKUPDIR/gres.conf.`hostname -s`.`date +'%Y%m%d_%H%M%S'`
+cp -f /etc/slurm/topology.conf $BACKUPDIR/topology.conf.`hostname -s`.`date +'%Y%m%d_%H%M%S'`
+cp -fv $CONFDIR/slurm.conf /etc/slurm/slurm.conf
+cp -fv $CONFDIR/gres.conf /etc/slurm/gres.conf
+cp -fv $CONFDIR/topology.conf /etc/slurm/topology.conf
+sleep 1
+
+# Restart slurm if we are not a login node
+if [ `echo $HOSTNAME | grep -c login | awk '{print $1}'` -lt 1 ] ; then
+   systemctl restart slurmd
+fi

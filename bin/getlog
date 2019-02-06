@@ -1,0 +1,20 @@
+#!/bin/bash
+
+REQLOG=$1
+CONF='./etc/'
+. $CONF/allowed_logs
+
+logAllowed () {
+  local i match="$1"
+  shift
+  for i; do [[ "$i" == "$match" ]] && return 0; done
+  return 1
+}
+
+if `logAllowed "${REQLOG}" "${ALLOWEDLOGS[@]}"`; then
+  cat ${REQLOG}
+  exit 0
+else
+  echo "Log not available"
+  exit 1
+fi

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+NEWMOTD=$1
+
+#MOTDFILE=/opt/flight-direct/etc/motd.d/00-site.txt
+MOTDFILE=~/alces-software/toolware/etc/motdfile
+LOG='/opt/service/site/setmotd.log'
+
+echo "`date +'%Y%m%d_%H%M%S'` - ${SUDO_USER} executing setmotd script on `hostname -s`" >> $LOG
+
+if [ "$NEWMOTD" == "" ] || [ ! -e $NEWMOTD ]; then
+    echo "No new MOTD File passed in - please give the path to the new MOTD to be used"
+    exit 1
+fi
+
+if [ ! -e $MOTDFILE ]; then
+    echo "Site admin specified MOTD does not exist - is this a compute node?"
+else
+    cat $NEWMOTD > $MOTDFILE
+    echo "Successfully set new MOTD"
+    exit 0
+fi
+
+
