@@ -1,0 +1,79 @@
+#!/bin/bash
+
+OPTIND=1
+ALCESUID=$(id -u alces)
+LOGFILE=/tmp/pkillerlog
+
+echo -e "\n\n=======Process killer tool invoked on host $HOSTNAME by ${SUDOUSER:-$USER} at `date`========" >> $LOGFILE
+
+while getopts "p:u:n:" opt; do
+	case "$opt" in
+	p)
+		PID=$OPTARG
+		echo "PID passed -p $PID" >> $LOGFILE
+		;;
+	u)
+		UNAME=$OPTARG
+                echo "Username passed -u $UNAME" >> $LOGFILE
+		;;
+	n)
+		SIG=$OPTARG
+                echo "Kill signal passed -n $SIG" >> $LOGFILE
+		;;
+	esac
+done
+
+if [[ -n $PID && -n $UNAME ]]; then
+    echo "Both PID and User has been passed! Either kill by PID or by Username" | tee -a $LOGFILE
+    exit 1
+fi
+
+if [[ -z $PID && -z $UID && $SIG || -z $SIG ]]; then
+    echo "Not enough parameters, need to pass -u USER -n SIG or -p PID -n SIG" | tee -a $LOGFILE
+    exit 1
+fi
+
+if [[ -n $UNAME ]]; then
+    echo "I'll log this to a file"
+    UIDFOUND=$(id -u $UNAME)
+    if [[ $UIDFOUND == 0 || $UIDFOUND == $ALCESUID || $UIDFOUND -lt 1000 ]]; then
+        echo "Invalid user to kill processes for - aborting" | tee -a $LOGFILE
+        exit 1
+    else
+        echo "Now running pkill -${SIG} -u ${UNAME}" | tee -a $LOGFILE
+        pkill -${SIG} -u ${UNAME} && exit 0
+    fi
+fi
+
+if [[ -n $PID ]]; then
+    PIDFOUND=$(ps -uw -p $PID | tail -n1 | awk '{print $2}')
+    echo "I found the PID $PIDFOUND from looking at ps" | tee -a $LOGFILE
+    if [[ -z $PIDFOUND || $PIDFOUND == "PID" ]]; then
+        echo "Looks like the process wasn't found in the process tree, has it died already?" | tee -a $LOGFILE
+        exit 1
+    fi
+    USERFOUND=$(ps -uw -p $PID | tail -n1 | awk '{print $1}')
+    if [[ -z $USERFOUND || $USERFOUND == "USER" ]]; then
+        echo "That PID wasn't found in the process tree, does that PID exist?" | tee -a $LOGFILE 
+        exit 1
+    fi
+    echo "I found the User that owns this process is $USERFOUND from looking at ps" | tee -a $LOGFILE
+    UIDFOUND=$(id -u ${USERFOUND})
+    echo "The UID of the user ${USERFOUND} from ps is ${UIDFOUND}" | tee -a $LOGFILE
+    if [[ $PIDFOUND != $PID ]]; then
+        echo "PID $PID was not found, exiting" | tee -a $LOGFILE
+	exit 1
+    elif [[ ${UIDFOUND} == 0 || ${UIDFOUND} == ${ALCESUID} ]]; then
+        echo "PID ${PID} is owned by user ${USERFOUND}, aborting" | tee -a $LOGFILE
+	exit 1
+    else
+	echo -e "Everything checks out OK before killing this process, we suspect it's probably a non-critical user \nwe'll now attempt to kill it" | tee -a $LOGFILE
+        echo "Running "kill -${SIG} ${PID} | tee -a $LOGFILE
+	set -o pipefail
+        kill -${SIG} ${PID} | tee -a $LOGFILE && exit 0
+        set +o pipefail
+    fi
+fi
+
+echo "Should not have reached here, something went wrong killing the process, the process may have already died!" | tee -a $LOGFILE
+exit 2
