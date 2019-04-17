@@ -1,8 +1,8 @@
 #!/bin/bash
 
 OPTIND=1
-ALCESUID=$(id -u alces)
-LOGFILE=/tmp/pkillerlog
+ALCESUID=$(id -u alces-cluster)
+LOGFILE=/opt/service/site/prockiller.log
 
 echo -e "\n\n=======Process killer tool invoked on host $HOSTNAME by ${SUDOUSER:-$USER} at `date`========" >> $LOGFILE
 
@@ -34,7 +34,6 @@ if [[ -z $PID && -z $UID && $SIG || -z $SIG ]]; then
 fi
 
 if [[ -n $UNAME ]]; then
-    echo "I'll log this to a file"
     UIDFOUND=$(id -u $UNAME)
     if [[ $UIDFOUND == 0 || $UIDFOUND == $ALCESUID || $UIDFOUND -lt 1000 ]]; then
         echo "Invalid user to kill processes for - aborting" | tee -a $LOGFILE
@@ -46,18 +45,18 @@ if [[ -n $UNAME ]]; then
 fi
 
 if [[ -n $PID ]]; then
-    PIDFOUND=$(ps -uw -p $PID | tail -n1 | awk '{print $2}')
-    echo "I found the PID $PIDFOUND from looking at ps" | tee -a $LOGFILE
+    PIDFOUND=$(ps -p $PID -w -o pid,ruser | tail -n1 | awk '{print $1}')
+    echo "Found the PID $PIDFOUND from looking at ps" | tee -a $LOGFILE
     if [[ -z $PIDFOUND || $PIDFOUND == "PID" ]]; then
         echo "Looks like the process wasn't found in the process tree, has it died already?" | tee -a $LOGFILE
         exit 1
     fi
-    USERFOUND=$(ps -uw -p $PID | tail -n1 | awk '{print $1}')
+    USERFOUND=$(ps -p $PID -w -o pid,ruser | tail -n1 | awk '{print $2}')
     if [[ -z $USERFOUND || $USERFOUND == "USER" ]]; then
-        echo "That PID wasn't found in the process tree, does that PID exist?" | tee -a $LOGFILE 
+        echo "That PID wasn't found in the process tree, does that PID exist?" | tee -a $LOGFILE
         exit 1
     fi
-    echo "I found the User that owns this process is $USERFOUND from looking at ps" | tee -a $LOGFILE
+    echo "Found the User that owns this process is $USERFOUND from looking at ps" | tee -a $LOGFILE
     UIDFOUND=$(id -u ${USERFOUND})
     echo "The UID of the user ${USERFOUND} from ps is ${UIDFOUND}" | tee -a $LOGFILE
     if [[ $PIDFOUND != $PID ]]; then
@@ -67,7 +66,7 @@ if [[ -n $PID ]]; then
         echo "PID ${PID} is owned by user ${USERFOUND}, aborting" | tee -a $LOGFILE
 	exit 1
     else
-	echo -e "Everything checks out OK before killing this process, we suspect it's probably a non-critical user \nwe'll now attempt to kill it" | tee -a $LOGFILE
+	echo -e "Everything checks out OK before killing this process, suspect it's probably a non-critical user \nNow attempting to kill it..." | tee -a $LOGFILE
         echo "Running "kill -${SIG} ${PID} | tee -a $LOGFILE
 	set -o pipefail
         kill -${SIG} ${PID} | tee -a $LOGFILE && exit 0
